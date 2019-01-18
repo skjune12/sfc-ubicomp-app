@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>index</title>
+</head>
+<body>
+  <h2>Personal Inventory Management System</h2>
+
+  <button id="toggleItems">Show All Items</button>
+  <button id="toggleRegister">Register</button>
+  <button id="reload" onClick="window.location.reload()">Reload</button>
+
+  <div id="register">
+    <form accept-charset="utf-8" return false>
+      <p>
+        <label for="name">Name :</label>
+        <input type="text" name="name" id="name" \>
+        <div id="name_err"></div>
+      </p>
+      <p>
+        <label for="owner">Owner :</label>
+        <input type="text" name="owner" id="owner" \>
+        <div id="owner_err"></div>
+      </p>
+      <p>
+        <label for="description">Description:</label><br \>
+        <textarea rows="5" cols="40" name="description" id="description"></textarea>
+        <div id="description_err"></div>
+      </p>
+      <p>
+        <input type="submit" id="submit" value="submit">
+      </p>
+
+      <div class="result">
+        Result will be shown in here
+      </div>
+    </form>
+  </div>
+
+  <div id="items">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Owner</th>
+          <th>Last Update</th>
+        </td>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .}}
+      <tr>
+        <td>{{.Id}}</td>
+        <td><a href="/item/{{.Id}}">{{.Name}}</a></td>
+        <td>{{.Owner}}</td>
+        <td>{{.Timestamp}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+<script type="text/javascript">
+
+$("#register").css("display", "none");
+
+$("#toggleItems").click(function() {
+  $("#register").css("display", "none");
+  $("#items").toggle()
+});
+
+$("#toggleRegister").click(function() {
+  $("#items").css("display", "none");
+  $("#register").toggle()
+});
+
+$("#submit").click(function(e) {
+  e.preventDefault();
+
+  var name = $('[name=name]').val();
+  var owner = $('[name=owner]').val();
+  var description = $('[name=description]').val();
+  var postData = {};
+
+  postData["name"] = name;
+  postData["owner"] = owner;
+  postData["description"] = description;
+
+  if (validateData(postData) === false) {
+    $.ajax({
+      url: "/item",
+      type: "POST",
+      dataType: "text", // サーバから返却される文字列のタイプ
+      data: postData,
+      timeout: 30000,
+      beforeSend: function(xhr, settings) {
+        // 送信前の処理: ボタンを非活性化して、二重処理を防ぐ
+        $("#submit").attr("disabled", true);
+      },
+      complete: function(xhr, settings) {
+        // ajaxの通信が完了したら、ボタンの非活性化を解除する
+        $("#submit").attr("diabled", false);
+      },
+      success: function(result, textStatus, xhr) {
+        // 送信成功時の処理
+        $('.result').text(result);
+      },
+      error: function(xhr, textStatus, error) {
+        $('.result').text('送信できませんでした');
+      }
+    })
+  } else {
+    // Do nothing
+  }
+
+  function validateData(postData) {
+    //エラーがないときはerr_flgはfalseとする
+    var errFlg = false;
+
+    //複数回エラーになったときのためにリセットしておく
+    $('#name_err').text('');
+    $('#owner_err').text('');
+    $('#description_err').text('');
+
+    // nameのバリデーション
+    if(postData["name"].length < 1 || postData["name"].length > 16) {
+      $('#name_err').text('名前は1文字以上16文字以内で入力してください。');
+      errFlg = true;
+    }
+
+    // ownerのバリデーション
+    if(postData["owner"].length < 1 || postData["owner"].length > 16) {
+      $('#owner_err').text('名前は1文字以上16文字以内で入力してください。');
+      errFlg = true;
+    }
+
+    // descriptionのバリデーション
+    if(postData['description'].length > 400) {
+      $('#description_err').text('コメントは400文字以内で入力してください。');
+      errFlg = true;
+    }
+
+    return errFlg;
+  };
+});
+</script>
+
+</body>
+</html>

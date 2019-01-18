@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Item - {{.Name}}</title>
+</head>
+<body>
+
+  <h2>{{.Name}}</h2>
+  <p>
+    Last Update: {{.Timestamp}}
+  </p>
+  <button id="toggleBarcode">QRコードを表示</button>
+  <div id="barcode">
+    <img src="data:image/png;base64,{{.Barcode}}">
+  </div>
+
+  <p>
+    <pre>{{.Description}}</pre>
+  </p>
+
+  <p>
+    <a href="/edit/{{.Id}}">Edit</a> /
+    <a data-confirm="Are you sure?" data-method="delete" href="/item/{{.Id}}" rel="nofollow">Delete</a>
+  </p>
+
+  <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+  <script type="text/javascript">
+  $("#barcode").css("display", "none");
+  $("#toggleBarcode").click(function() {
+    $("#barcode").toggle()
+  });
+  </script>
+
+</body>
+</html>
