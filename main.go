@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"image/png"
@@ -46,9 +47,10 @@ func (a *App) Initialize() {
 }
 
 func (a *App) InitializeHandlers() {
-	a.Router.HandleFunc("/", a.GetItems).Methods("GET")
-	a.Router.HandleFunc("/register", a.Register).Methods("GET")
-	a.Router.HandleFunc("/edit/{id}", a.Edit).Methods("GET")
+	a.Router.HandleFunc("/", a.IndexHandler).Methods("GET")
+	a.Router.HandleFunc("/detail/{id}", a.Detail).Methods("GET")
+
+	a.Router.HandleFunc("/items", a.GetItems).Methods("GET")
 	a.Router.HandleFunc("/item", a.CreateNewItem).Methods("POST")
 	a.Router.HandleFunc("/item/{id}", a.GetItem).Methods("GET")
 	a.Router.HandleFunc("/item/{id}", a.UpdateItem).Methods("POST", "PUT")
@@ -81,9 +83,9 @@ func (a *App) Run(addr string) {
 	log.Fatal(http.ListenAndServe(addr, loggedRouter))
 }
 
-// 新規登録ページ
-func (a *App) Register(w http.ResponseWriter, r *http.Request) {
-	data, err := ioutil.ReadFile("./static/register.html")
+// index
+func (a *App) IndexHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := ioutil.ReadFile("./static/index.html")
 	if err != nil {
 		log.Fatal("os.Open:", err)
 	}
@@ -91,8 +93,7 @@ func (a *App) Register(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(data))
 }
 
-// 編集ページ
-func (a *App) Edit(w http.ResponseWriter, r *http.Request) {
+func (a *App) Detail(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
 	id, err := strconv.Atoi(params["id"])
@@ -100,6 +101,7 @@ func (a *App) Edit(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "invalid id")
 	}
 
+	// TODO: APIから引っ張ってくるようにする
 	db, err := sql.Open("sqlite3", dbName)
 	if err != nil {
 		log.Fatal("sql.Open:", err)
@@ -123,9 +125,9 @@ func (a *App) Edit(w http.ResponseWriter, r *http.Request) {
 
 	// 見つかったら、テンプレートを描画
 	default:
-		t := template.Must(template.ParseFiles("templates/edit.tmpl"))
+		t := template.Must(template.ParseFiles("templates/detail.tmpl"))
 
-		if err := t.ExecuteTemplate(w, "edit.tmpl", item); err != nil {
+		if err := t.ExecuteTemplate(w, "detail.tmpl", item); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -141,7 +143,7 @@ func (a *App) GetItems(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query(`SELECT * from items`)
+	rows, err := db.Query(`SELECT id, timestamp, name, owner from items`)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -149,7 +151,7 @@ func (a *App) GetItems(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var item Item
-		err = rows.Scan(&item.Id, &item.Timestamp, &item.Name, &item.Description, &item.Owner, &item.Barcode)
+		err = rows.Scan(&item.Id, &item.Timestamp, &item.Name, &item.Owner)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -157,10 +159,7 @@ func (a *App) GetItems(w http.ResponseWriter, r *http.Request) {
 		items = append(items, item)
 	}
 
-	t := template.Must(template.ParseFiles("templates/index.tmpl"))
-	if err := t.ExecuteTemplate(w, "index.tmpl", items); err != nil {
-		log.Fatal(err)
-	}
+	json.NewEncoder(w).Encode(items)
 }
 
 // アイテムを取得
@@ -193,13 +192,9 @@ func (a *App) GetItem(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		log.Fatal(err)
 
-	// 見つかったら、テンプレートを描画
+	// if found
 	default:
-		t := template.Must(template.ParseFiles("templates/detail.tmpl"))
-
-		if err := t.ExecuteTemplate(w, "detail.tmpl", item); err != nil {
-			log.Fatal(err)
-		}
+		json.NewEncoder(w).Encode(item)
 	}
 }
 
@@ -236,13 +231,11 @@ func (a *App) CreateNewItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newItem := Item{
-		// Id:          itemID,
 		Timestamp:   time.Now().Format(timeFormat),
 		Name:        r.FormValue("name"),
 		Description: r.FormValue("description"),
 		Owner:       r.FormValue("owner"),
 		Barcode:     a.GenerateBarcode(url),
-		// Deleted:     false,
 	}
 
 	_, err = db.Exec(`INSERT INTO "items" (
@@ -257,7 +250,6 @@ func (a *App) CreateNewItem(w http.ResponseWriter, r *http.Request) {
 		newItem.Description,
 		newItem.Owner,
 		newItem.Barcode,
-		//newItem.Deleted,
 	)
 
 	if err != nil {
@@ -296,7 +288,6 @@ func (a *App) UpdateItem(w http.ResponseWriter, r *http.Request) {
 		Description: r.FormValue("description"),
 		Owner:       r.FormValue("owner"),
 		Barcode:     a.GenerateBarcode(url),
-		// Deleted:     false,
 	}
 
 	db, err := sql.Open("sqlite3", dbName)
@@ -356,6 +347,7 @@ func (a *App) DeleteItem(w http.ResponseWriter, r *http.Request) {
 
 	_, err = db.Exec(
 		`DELETE FROM items WHERE id=?`,
+		id,
 	)
 
 	if err != nil {

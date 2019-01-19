@@ -4,72 +4,97 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Item - {{.Name}}</title>
+  <title>sfc-ubicomp-app</title>
 </head>
 <body>
+  <h2>Personal Inventory Management System</h2>
 
-  <h2>
-    <label id="itemID">{{.Id}}</label> - {{.Name}}</h2>
-  <p>
-    Last Update: {{.Timestamp}}
-  </p>
-  <button id="toggleBarcode">Show QR Code</button>
-  <div id="barcode">
-    <img src="data:image/png;base64,{{.Barcode}}">
-  </div>
+  <button id="toggleItems">Show All Items</button>
+  <button id="toggleRegister">Register</button>
+  <button id="reload" onClick="window.location.reload()">Reload</button>
 
-  <p>
-    <pre>{{.Description}}</pre>
-  </p>
-
-  <p>
-    <button id="toggleEdit">Edit</button> /
-    <button id="delete">Delete</button> /
-    <button id="reload" onClick="window.location.reload()">Reload</button>
-  </p>
-
-  <div id="edit">
+  <div id="register">
     <form accept-charset="utf-8" return false>
       <p>
         <label for="name">Name :</label>
-        <input type="text" name="name" id="name" placeholder="{{.Name}}" \>
+        <input type="text" name="name" id="name" \>
         <div id="name_err"></div>
       </p>
       <p>
         <label for="owner">Owner :</label>
-        <input type="text" name="owner" id="owner" placeholder="{{.Owner}}" \>
+        <input type="text" name="owner" id="owner" \>
         <div id="owner_err"></div>
       </p>
       <p>
         <label for="description">Description:</label><br \>
-        <textarea rows="5" cols="40" name="description" id="description" placeholder="{{.Description}}"></textarea>
+        <textarea rows="5" cols="40" name="description" id="description"></textarea>
         <div id="description_err"></div>
       </p>
       <p>
-        <input type="submit" id="update" value="Update">
+        <input type="submit" id="submit" value="submit">
       </p>
+
+      <div class="result">
+        Result will be shown in here
+      </div>
     </form>
-
   </div>
 
-  <div class="result">
-    Result will be shown in here
+  <div id="items">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Owner</th>
+          <th>Last Update</th>
+        </td>
+      </tr>
+    </thead>
+    <tbody id="itemInfo">
+
+    </tbody>
+  </table>
   </div>
 
-  <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.9.1/underscore-min.js"></script>
   <script type="text/javascript">
-  $("#barcode").css("display", "none");
-  $("#edit").css("display", "none");
 
-  $("#toggleBarcode").click(function() {
-    $("#barcode").toggle()
+  $("#register").css("display", "none");
+  $("#items").css("display", "none");
+
+  $("#toggleItems").click(function() {
+    $("#register").css("display", "none");
+    $("#itemInfo").html("");
+    $("#items").toggle()
+
+    $.ajax({
+      type: "GET",
+      url: "/items",
+      dataType: "json"
+    })
+    .done(function(result, textStatus, xhr) {
+      for (var i=0; i < result.length; i++) {
+        var $tr = $("<tr></tr>");
+        $tr.append("<td>" + result[i].id + "</td>")
+          .append("<td>" + "<a href='" + "/detail/" + result[i].id + "'>" + result[i].name + "</a>" + "</td>")
+          .append("<td>" + result[i].owner + "</td>")
+          .append("<td>" + result[i].timestamp + "</td>");
+        $("#itemInfo").append($tr);
+      }
+    })
+    .fail(function(xhr, textStatus, error) {
+      console.log("error");
+    });
   });
 
-  $("#toggleEdit").click(function() {
-    $("#edit").toggle()
+  $("#toggleRegister").click(function() {
+    $("#items").css("display", "none");
+    $("#register").toggle()
   });
 
-  $("#update").click(function(e) {
+  $("#submit").click(function(e) {
     e.preventDefault();
 
     var name = $('[name=name]').val();
@@ -83,18 +108,18 @@
 
     if (validateData(postData) === false) {
       $.ajax({
-        url: "/item/{{.Id}}",
-        type: "PUT",
+        url: "/item",
+        type: "POST",
         dataType: "text", // サーバから返却される文字列のタイプ
         data: postData,
         timeout: 30000,
         beforeSend: function(xhr, settings) {
           // 送信前の処理: ボタンを非活性化して、二重処理を防ぐ
-          $("#update").attr("disabled", true);
+          $("#submit").attr("disabled", true);
         },
         complete: function(xhr, settings) {
           // ajaxの通信が完了したら、ボタンの非活性化を解除する
-          $("#update").attr("diabled", false);
+          $("#submit").attr("diabled", false);
         },
         success: function(result, textStatus, xhr) {
           // 送信成功時の処理
@@ -138,20 +163,7 @@
       return errFlg;
     };
   });
-
-  $("#delete").click(function() {
-    var confirmed = confirm("Are you sure to delete the item?");
-    if (confirmed == true) {
-      $.ajax({
-        url: "/item/{{.Id}}",
-        type: 'DELETE',
-        success: function(result) {
-          window.location.href = "/";
-        }
-      });
-    }
-  });
-  </script>
+</script>
 
 </body>
 </html>
