@@ -216,17 +216,18 @@ func (a *App) CreateNewItem(w http.ResponseWriter, r *http.Request) {
 	err = row.Scan(&itemID)
 	switch {
 	case err == sql.ErrNoRows:
-		fmt.Fprintf(w, "Not Found")
+		itemID = 1
+		url = fmt.Sprintf("http://%s/detail/%d\n", r.Host, itemID)
 
 	case err != nil:
 		log.Fatal(err)
 
 	default:
-		url = fmt.Sprintf("http://%s%s/%d\n", r.Host, r.URL, itemID)
+		url = fmt.Sprintf("http://%s/detail/%d\n", r.Host, itemID)
 	}
 
 	if len(url) < 1 {
-		fmt.Fprintln(w, "Missing needed parameter 'm'.")
+		fmt.Fprintln(w, "Missing needed parameter.")
 		return
 	}
 
